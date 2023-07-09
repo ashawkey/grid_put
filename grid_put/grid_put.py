@@ -28,7 +28,7 @@ def scatter_add_nd(input, indices, values):
     return input.view(*size, C)
 
 
-def nearest_grid_put_2d(H, W, coords, values):
+def nearest_grid_put_2d(H, W, coords, values, return_count=False):
     # coords: [N, 2], float in [-1, 1]
     # values: [N, C]
 
@@ -44,6 +44,9 @@ def nearest_grid_put_2d(H, W, coords, values):
     ones = torch.ones_like(values[..., :1])  # [N, 1]
     result = scatter_add_nd(result, indices, values)
     count = scatter_add_nd(count, indices, ones)
+
+    if return_count:
+        return result, count
 
     mask = (count.squeeze(-1) > 0)
     result[mask] = result[mask] / count[mask].repeat(1, C)
@@ -101,7 +104,7 @@ def bilinear_grid_put_2d(H, W, coords, values, return_count=False):
     return result
 
 
-def mipmap_bilinear_grid_put_2d(H, W, coords, values, min_resolution=32):
+def mipmap_bilinear_grid_put_2d(H, W, coords, values, min_resolution=32, return_count=False):
     # coords: [N, 2], float in [-1, 1]
     # values: [N, C]
 
@@ -125,13 +128,16 @@ def mipmap_bilinear_grid_put_2d(H, W, coords, values, min_resolution=32):
         cur_H //= 2
         cur_W //= 2
     
+    if return_count:
+        return result, count
+
     mask = (count.squeeze(-1) > 0)
     result[mask] = result[mask] / count[mask].repeat(1, C)
 
     return result
 
 
-def grid_put(shape, coords, values, mode='bilinear-mipmap', min_resolution=32):
+def grid_put(shape, coords, values, mode='bilinear-mipmap', min_resolution=32, return_raw=False):
     # shape: [D], list/tuple
     # coords: [N, D], float in [-1, 1]
     # values: [N, C]
@@ -140,12 +146,10 @@ def grid_put(shape, coords, values, mode='bilinear-mipmap', min_resolution=32):
     assert D == 2, f'only support D == 2, but got D == {D}'
 
     if mode == 'nearest':
-        out = nearest_grid_put_2d(*shape, coords, values)
+        return nearest_grid_put_2d(*shape, coords, values, return_raw)
     elif mode == 'bilinear':
-        out = bilinear_grid_put_2d(*shape, coords, values)
+        return bilinear_grid_put_2d(*shape, coords, values, return_raw)
     elif mode == 'bilinear-mipmap':
-        out = mipmap_bilinear_grid_put_2d(*shape, coords, values, min_resolution=min_resolution)
+        return mipmap_bilinear_grid_put_2d(*shape, coords, values, min_resolution, return_raw)
     else:
         raise NotImplementedError(f"got mode {mode}")
-    
-    return out
