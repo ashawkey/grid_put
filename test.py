@@ -36,6 +36,6 @@ values = (
 )
 
 # grid put
-for mode in ['nearest', 'bilinear', 'bilinear-mipmap']:
+for mode in ['nearest', 'linear', 'linear-mipmap']:
     out = grid_put((H, W), coords, values, mode=mode)
     kiui.write_image(f"assets/out_{mode}_{args.ratio}_{args.mode}.png", out)
